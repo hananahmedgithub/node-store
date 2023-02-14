@@ -1,0 +1,18 @@
+openapi: 3.0.0
+info:
+  title: Node Store by Hanan Ahmed
+  description: Ecommerce Store API built using NodeJS and Express
+  version: 1.0.1
+
+servers:
+  - url: http://nodestoreapi.hanan.tech/api/v1
+    description: Production server to get API data
+
+components:
+  securitySchemes:
+    BasicAuth:
+      type: http
+      scheme: basic
+    BearerAuth:
+      type: http
+      scheme: bearer
