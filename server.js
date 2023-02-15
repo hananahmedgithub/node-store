@@ -1,4 +1,4 @@
-require('./db.config');
+require('./utils/db.config');
 const express = require('express');
 
 const swaggerUi = require('swagger-ui-express');
@@ -17,7 +17,7 @@ function Server() {
 		swaggerUi.setup(swaggerDocument)
 	);
 
-	app.use('/api/v1/user', userRouter);
+	app.use('/api/v1/users', userRouter);
 
 	const PORT = process.env.PORT;
 
