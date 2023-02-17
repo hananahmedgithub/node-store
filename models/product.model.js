@@ -1,16 +1,12 @@
 const mongoose = require('mongoose');
-
+const slugify = require('slugify');
 const variantSchema = new mongoose.Schema({
 	name: {
 		type: String,
-		required: true,
-		unique: true,
 	},
 	values: [
 		{
 			type: String,
-			required: true,
-			unique: true,
 		},
 	],
 });
@@ -27,6 +23,21 @@ const productSchema = new mongoose.Schema({
 		type: Date,
 		default: Date.now,
 	},
+	slug: {
+		type: String,
+		unique: true,
+	},
+});
+
+productSchema.pre('save', function (next) {
+	if (this.slug === null) {
+		this.slug = slugify(this.title, {
+			replacement: '-',
+			lower: true,
+			strict: true,
+		});
+	}
+	next();
 });
 
 const productModel = new mongoose.model('Product', productSchema);
