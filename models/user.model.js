@@ -1,18 +1,22 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
+const validator = require('validator');
+const jwt = require('jsonwebtoken');
+
 const userSchema = new mongoose.Schema({
-	first_name: String,
-	last_name: String,
+	first_name: { type: String, required: true },
+	last_name: { type: String, required: true },
 	email: {
 		type: String,
 		unique: true,
 		required: true,
-		lowercase: true,
 		trim: true,
+		validate: [validator.isEmail],
 	},
 	password: {
 		type: String,
 		required: true,
+		select: false,
 	},
 	createdAt: {
 		type: Date,
@@ -21,14 +25,19 @@ const userSchema = new mongoose.Schema({
 });
 
 userSchema.pre('save', async function (next) {
-	const salt = await bcrypt.genSalt(10);
-	const hashed = await bcrypt.hash(this.password, salt);
-	console.log(this.password);
+	if (!this.password.isModified) return next();
+	const hashed = await bcrypt.hash(this.password, 10);
 	this.password = hashed;
-	console.log(this.password);
-	next();
 });
 
-const userModel = new mongoose.model('User', userSchema);
+userSchema.methods.isValidPassword = async function (userPassword) {
+	console.log(await bcrypt.compare(userPassword, this.password));
+};
 
-module.exports = userModel;
+userSchema.methods.getSignedUser = function () {
+	return jwt.sign({ id: this._id }, process.env.JWT_SECRET, {
+		expiresIn: process.env.JWT_EXPIRY,
+	});
+};
+
+module.exports = mongoose.model('User', userSchema);
