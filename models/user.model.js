@@ -25,13 +25,13 @@ const userSchema = new mongoose.Schema({
 });
 
 userSchema.pre('save', async function (next) {
-	if (!this.password.isModified) return next();
+	if (!this.isModified('password')) return next();
 	const hashed = await bcrypt.hash(this.password, 10);
 	this.password = hashed;
 });
 
 userSchema.methods.isValidPassword = async function (userPassword) {
-	console.log(await bcrypt.compare(userPassword, this.password));
+	return await bcrypt.compare(userPassword, this.password);
 };
 
 userSchema.methods.getSignedUser = function () {

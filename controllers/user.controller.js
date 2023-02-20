@@ -16,7 +16,7 @@ const login = catchAsync(async (req, res, next) => {
 	const token = await user.getSignedUser();
 
 	res
-		.cookie(token, null, {
+		.cookie('token', token, {
 			expires: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
 			httpOnly: true,
 		})
@@ -37,18 +37,28 @@ const register = catchAsync(async (req, res, next) => {
 		return next(new AppError('Fields missing', 400));
 	}
 	const validEmail = checkEmail(email);
-	//const validPassword = checkPassword(password);
+	const validPassword = checkPassword(password);
 	if (!validEmail) {
 		return next(new AppError('Email is not in a valid format', 400));
 	}
-	// if (!validPassword) {
-	// 	return next(
-	// 		new AppError('Password is not in a valid format', 400)
-	// 	);
-	// }
-	const newUser = await User.create(user);
+	if (!validPassword) {
+		return next(
+			new AppError('Password is not in a valid format', 400)
+		);
+	}
+	const newUser = await User(user);
 	await newUser.save();
 	res.status(201).json({ data: { message: 'User created' } });
 });
 
-module.exports = { login, register };
+const logout = catchAsync(async (req, res, next) => {
+	res
+		.cookie('token', null, {
+			expires: new Date(Date.now()),
+			httpOnly: true,
+		})
+		.status(200)
+		.json({ data: { message: 'Logout Success' } });
+});
+
+module.exports = { login, register, logout };
