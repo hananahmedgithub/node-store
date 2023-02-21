@@ -1,7 +1,13 @@
+const PasswordToken = require('../models/passwordtoken.model');
 const User = require('../models/user.model');
 const AppError = require('../utils/appError');
 const catchAsync = require('../utils/catchAsync');
-const { checkEmail, checkPassword } = require('../utils/helpers');
+const transporter = require('../utils/emailTransporter');
+const {
+	checkEmail,
+	checkPassword,
+	getToken,
+} = require('../utils/helpers');
 
 const login = catchAsync(async (req, res, next) => {
 	const { email, password } = req.body;
@@ -61,4 +67,22 @@ const logout = catchAsync(async (req, res, next) => {
 		.json({ data: { message: 'Logout Success' } });
 });
 
-module.exports = { login, register, logout };
+const resetPassword = catchAsync(async (req, res, next) => {
+	const { token, hashedToken } = getToken();
+	const newToken = await new PasswordToken({ token: hashedToken });
+	await newToken.save();
+	const resetLink = `${process.env.PUBLIC_URL}/reset=${token}`;
+	try {
+		await transporter.sendMail({
+			from: 'Hanan <nodestore@hanan.tech>',
+			to: 'test@gmail.com', // list of receivers
+			subject: 'Your reset password link', // Subject line
+			html: `<h1>You can reset your password here:</h1> ${resetLink}`, // plain text body
+		});
+		res.status(200).json({ data: { message: 'Link Sent' } });
+	} catch (error) {
+		next(new AppError(error.message, 500));
+	}
+});
+
+module.exports = { login, register, logout, resetPassword };

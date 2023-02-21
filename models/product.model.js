@@ -40,6 +40,6 @@ productSchema.pre('save', function (next) {
 	next();
 });
 
-const productModel = new mongoose.model('Product', productSchema);
+const productModel = mongoose.model('Product', productSchema);
 
 module.exports = productModel;
