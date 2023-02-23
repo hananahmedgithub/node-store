@@ -77,7 +77,7 @@ const resetPassword = catchAsync(async (req, res, next) => {
 			from: 'Hanan <nodestore@hanan.tech>',
 			to: 'test@gmail.com', // list of receivers
 			subject: 'Your reset password link', // Subject line
-			html: `<h1>You can reset your password here:</h1> ${resetLink}`, // plain text body
+			html: `<h1>You can reset your password here:</h1> <a>${resetLink}</a>`, // plain text body
 		});
 		res.status(200).json({ data: { message: 'Link Sent' } });
 	} catch (error) {
