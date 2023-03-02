@@ -22,6 +22,8 @@ const userSchema = new mongoose.Schema({
 		type: Date,
 		default: Date.now,
 	},
+	imageUrl: String,
+	imageId: String,
 });
 
 userSchema.pre('save', async function (next) {

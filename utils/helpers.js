@@ -11,12 +11,20 @@ const checkPassword = (password) => {
 
 const getToken = () => {
 	const token = crypto.randomBytes(20).toString('hex');
+	return token;
+};
+
+const hashToken = (token) => {
 	const hashedToken = crypto
 		.createHash('sha256')
 		.update(token)
 		.digest('hex');
 
-	return { token, hashedToken };
+	return hashedToken;
 };
-
-module.exports = { checkEmail, checkPassword, getToken };
+module.exports = {
+	checkEmail,
+	checkPassword,
+	getToken,
+	hashToken,
+};

@@ -2,12 +2,13 @@ const PasswordToken = require('../models/passwordtoken.model');
 const User = require('../models/user.model');
 const AppError = require('../utils/appError');
 const catchAsync = require('../utils/catchAsync');
-const transporter = require('../utils/emailTransporter');
 const {
 	checkEmail,
 	checkPassword,
 	getToken,
 } = require('../utils/helpers');
+const sendEmail = require('../utils/sendEmail');
+const cloudinary = require('../utils/cloudinary.config');
 
 const login = catchAsync(async (req, res, next) => {
 	const { email, password } = req.body;
@@ -37,7 +38,16 @@ const login = catchAsync(async (req, res, next) => {
 });
 
 const register = catchAsync(async (req, res, next) => {
-	const user = req.body;
+	let imageUploaded = null;
+	const { files, body: user } = req;
+	if (files) {
+		imageUploaded = await cloudinary.uploader.upload(
+			files.image.tempFilePath,
+			{
+				upload_preset: 'node-store',
+			}
+		);
+	}
 	const { first_name, last_name, email, password } = user;
 	if (!first_name || !last_name || !email) {
 		return next(new AppError('Fields missing', 400));
@@ -52,6 +62,8 @@ const register = catchAsync(async (req, res, next) => {
 			new AppError('Password is not in a valid format', 400)
 		);
 	}
+	user.imageUrl = imageUploaded?.eager[0].secure_url;
+	user.imageId = imageUploaded?.public_id;
 	const newUser = await User(user);
 	await newUser.save();
 	res.status(201).json({ data: { message: 'User created' } });
@@ -67,22 +79,70 @@ const logout = catchAsync(async (req, res, next) => {
 		.json({ data: { message: 'Logout Success' } });
 });
 
-const resetPassword = catchAsync(async (req, res, next) => {
-	const { token, hashedToken } = getToken();
-	const newToken = await new PasswordToken({ token: hashedToken });
-	await newToken.save();
-	const resetLink = `${process.env.PUBLIC_URL}/reset=${token}`;
-	try {
-		await transporter.sendMail({
-			from: 'Hanan <nodestore@hanan.tech>',
-			to: 'test@gmail.com', // list of receivers
-			subject: 'Your reset password link', // Subject line
-			html: `<h1>You can reset your password here:</h1> <a>${resetLink}</a>`, // plain text body
-		});
-		res.status(200).json({ data: { message: 'Link Sent' } });
-	} catch (error) {
-		next(new AppError(error.message, 500));
+const sendResetPasswordLink = catchAsync(async (req, res, next) => {
+	const { email } = req.body;
+	const findUser = await User.findOne({ email });
+	if (!findUser)
+		return next(new AppError(`${email} not registered.`, 404));
+	const checkToken = await PasswordToken.findOne({
+		owner: findUser.id,
+	});
+	if (checkToken) {
+		await PasswordToken.findOneAndDelete({ owner: findUser.id });
 	}
+	const token = getToken();
+
+	await PasswordToken.create({
+		owner: findUser.id,
+		token,
+	});
+	const emailMessage = `<h1>You can reset your password by clicking <a href=${process.env.PUBLIC_URL}/reset/${token}>here</a>.`;
+	await sendEmail(
+		'nodestore@hanan.tech',
+		email,
+		'Your password reset request',
+		emailMessage,
+		next
+	);
+	res.status(201).json({ data: { message: 'Reset link sent.' } });
 });
 
-module.exports = { login, register, logout, resetPassword };
+const changePassword = catchAsync(async (req, res, next) => {
+	const { token, email, password } = req.body;
+	const user = await User.findOne({ email }).select('+password');
+	if (!user) return next(new AppError('Email not found!', 404));
+	const requestExists = await PasswordToken.findOne({
+		owner: user.id,
+	});
+	if (!requestExists)
+		return next(new AppError('Invalid request', 422));
+	const validToken = await requestExists.isValidToken(token);
+	if (!validToken) return next(new AppError('Invalid Token', 422));
+	const passwordValid = checkPassword(password);
+	if (!passwordValid)
+		return next(new AppError('Invalid Password Format'), 422);
+	user.password = password;
+	await user.save();
+	await PasswordToken.findByIdAndDelete(requestExists.id);
+	await sendEmail(
+		'nodestore@hanan.tech',
+		user.email,
+		'Nodestore Ecomm Password Changed',
+		`Your password for nodestore ecomm has been changed.`
+	);
+	res.status(201).json({ data: { message: 'Password changed' } });
+});
+
+const userDashboard = catchAsync(async (req, res, next) => {
+	const { user } = req;
+	res.status(200).json({ data: { user } });
+});
+
+module.exports = {
+	login,
+	register,
+	logout,
+	sendResetPasswordLink,
+	changePassword,
+	userDashboard,
+};
